@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="zh">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+
+    <title>吕国庆 · AI Agent 简历</title>
+
+    <!-- 站点描述：搜索引擎摘要，也是部分平台分享卡片的兜底文案 -->
+    <meta
+      name="description"
+      content="吕国庆的个人简历 —— 交互式 3D 简历：点击形象上的元素查看教育背景、实习与项目经历、技能栈和联系方式。"
+    />
+
+    <!-- 移动端浏览器地址栏配色，与页面底色 #0a0e16 保持一致，滚动时视觉更完整 -->
+    <meta name="theme-color" content="#0a0e16" />
+
+    <!-- 站点图标。这里用相对路径 ./ 而不是 /：
+         本项目 vite base 为 './'，./ 始终指向页面同级目录，部署到子路径
+         （如 example.com/portfolio/）时也不会失效。
+         当前用的是仓库自带的闲置素材占位，替换成自己的图即可（建议 512×512 方图）。 -->
+    <link rel="icon" type="image/jpeg" href="./images/hotsar.jpg" />
+    <link rel="apple-touch-icon" href="./images/hotsar.jpg" />
+
+    <!-- ==========================================================================
+         分享卡片 meta（微信 / QQ / 微博 / Twitter 抓取的就是这几行）
+
+         为什么必须写死在 HTML 里：这些平台的爬虫**不执行 JavaScript**，
+         只在服务端读原始 HTML。用 JS 运行时注入 og 标签是无效的。
+
+         ⚠️ 上线前必改：把下面 4 处 https://example.com 换成你的真实域名（结尾不带 /）
+            GitHub Pages     → https://<用户名>.github.io/<仓库名>
+            Cloudflare Pages → https://<项目名>.pages.dev
+            自定义域名       → https://resume.你的域名.com
+
+         og:image 必须是**完整绝对地址**，爬虫不解析相对路径。
+         推荐 1200×630 左右；当前 public/og.jpg 为 1400×788，比例接近，可直接用。
+         ========================================================================== -->
+    <link rel="canonical" href="https://example.com/" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="吕国庆 · AI Agent 简历" />
+    <meta property="og:locale" content="zh_CN" />
+    <meta property="og:locale:alternate" content="en_US" />
+    <meta property="og:url" content="https://example.com/" />
+    <meta property="og:title" content="吕国庆 · AI Agent 简历" />
+    <meta
+      property="og:description"
+      content="交互式 3D 简历：点击形象上的元素，查看教育背景、实习与项目经历、技能栈和联系方式。"
+    />
+    <meta property="og:image" content="https://example.com/og.jpg" />
+    <meta property="og:image:width" content="1400" />
+    <meta property="og:image:height" content="788" />
+    <meta property="og:image:alt" content="3D 简历首屏：人物模型与 About 文案" />
+
+    <!-- Twitter / X 卡片（部分国内平台也会读取这几项） -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="吕国庆 · AI Agent 简历" />
+    <meta
+      name="twitter:description"
+      content="交互式 3D 简历：点击形象上的元素，查看教育背景、实习与项目经历、技能栈和联系方式。"
+    />
+    <meta name="twitter:image" content="https://example.com/og.jpg" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Mansalva&family=Cormorant+Upright:wght@400;500;600&family=Chiron+GoRound+TC:wght@300;400;500;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
