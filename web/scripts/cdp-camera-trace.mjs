@@ -8,13 +8,19 @@
 //
 // 判据：镜头连贯 ⇒ 每步位移/转角是「单峰」曲线；硬切 ⇒ 会出现一两个尖峰。
 //
-// 用法：node scripts/cdp-camera-trace.mjs <baseUrl> [热点下标] [采样时长ms]
+// 用法：node scripts/cdp-camera-trace.mjs <baseUrl> [热点下标] [采样时长ms] [--mobile]
+//
+// --mobile 用 390×844 + 触摸模拟。必须开触摸模拟，否则 matchMedia('(pointer: coarse)')
+// 为 false，Scene.tsx 会走桌面分支（mobilePullback / mobileTimelineShift 都不生效）。
 
 import { launch, setViewport, goto, evaluate, sleep } from './lib/cdp.mjs'
 
-const BASE = process.argv[2] ?? 'http://localhost:5173'
-const IDX = Number(process.argv[3] ?? 3) // 0=个人信息 1=实习与项目 2=兴趣与旅行 3=联系方式
-const HOLD = Number(process.argv[4] ?? 2600)
+const argv = process.argv.slice(2)
+const MOBILE = argv.includes('--mobile')
+const pos = argv.filter((a) => !a.startsWith('--'))
+const BASE = pos[0] ?? 'http://localhost:5173'
+const IDX = Number(pos[1] ?? 3) // 0=个人信息 1=实习与项目 2=兴趣与旅行 3=联系方式
+const HOLD = Number(pos[2] ?? 2600)
 
 const SAMPLER = `
 window.__trace = [];
@@ -45,7 +51,8 @@ const dist3 = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2])
 async function main() {
   const { cdp, close } = await launch()
   try {
-    await setViewport(cdp, { w: 1440, h: 900, dpr: 1 })
+    if (MOBILE) await setViewport(cdp, { w: 390, h: 844, dpr: 2, mobile: true })
+    else await setViewport(cdp, { w: 1440, h: 900, dpr: 1 })
     await goto(cdp, BASE, 9000)
 
     const ready = await evaluate(cdp, `typeof window.__scene !== 'undefined'`)
@@ -63,7 +70,10 @@ async function main() {
     const trace = await evaluate(cdp, `JSON.stringify(window.__trace)`)
     const rows = JSON.parse(trace)
 
-    console.log(`热点下标 ${IDX} / 点击发生在 ${Math.round(tClick)}ms / 共采到 ${rows.length} 帧`)
+    console.log(
+      `${MOBILE ? '移动端 390×844' : '桌面 1440×900'} / 热点下标 ${IDX} / ` +
+        `点击发生在 ${Math.round(tClick)}ms / 共采到 ${rows.length} 帧`
+    )
     console.log()
 
     const hdr =
