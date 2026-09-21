@@ -121,6 +121,9 @@ async function main() {
       '--headless=new',
       `--remote-debugging-port=${PORT}`,
       `--user-data-dir=${PROFILE}`,
+      // 沙箱里 http_proxy 指向本机代理，Chrome 走系统代理会把 localhost 也代理出去
+      // （表现：页面空白、拿不到 canvas）。与 scripts/lib/cdp.mjs 保持一致。
+      '--no-proxy-server',
       '--no-first-run',
       '--no-default-browser-check',
       '--hide-scrollbars',
