@@ -18,9 +18,10 @@
     <!-- 站点图标。这里用相对路径 ./ 而不是 /：
          本项目 vite base 为 './'，./ 始终指向页面同级目录，部署到子路径
          （如 example.com/portfolio/）时也不会失效。
-         当前用的是仓库自带的闲置素材占位，替换成自己的图即可（建议 512×512 方图）。 -->
-    <link rel="icon" type="image/jpeg" href="./images/hotsar.jpg" />
-    <link rel="apple-touch-icon" href="./images/hotsar.jpg" />
+         favicon.svg 给现代浏览器（矢量、任意尺寸都清晰），favicon.png 是
+         iOS 加到主屏时用的位图（建议 512×512 方图）。换成自己的图时替换这两个文件即可。 -->
+    <link rel="icon" type="image/svg+xml" href="./images/favicon.svg" />
+    <link rel="apple-touch-icon" href="./images/favicon.png" />
 
     <!-- ==========================================================================
          分享卡片 meta（微信 / QQ / 微博 / Twitter 抓取的就是这几行）
@@ -51,7 +52,7 @@
     <meta property="og:image" content="https://example.com/og.jpg" />
     <meta property="og:image:width" content="1400" />
     <meta property="og:image:height" content="788" />
-    <meta property="og:image:alt" content="3D 简历首屏：人物模型与 About 文案" />
+    <meta property="og:image:alt" content="3D 简历总览：人物形象与四个可点击热点" />
 
     <!-- Twitter / X 卡片（部分国内平台也会读取这几项） -->
     <meta name="twitter:card" content="summary_large_image" />

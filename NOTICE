@@ -1,49 +1,53 @@
-# NOTICE — What is and isn't covered by the MIT License
+# NOTICE — 哪些内容在 MIT 范围内，哪些不在
 
-This repository is open-sourced so others can learn from and reuse the **code**
-that builds the scene (the React Three Fiber setup, components, scroll-driven
-camera, post-processing, etc.). That code is under the MIT License (see `LICENSE`).
-
-The repository is also a real personal portfolio. The **personal content and
-assets** below are © 2026 Sen Zheng (SEN), all rights reserved. They are **not**
-licensed under MIT and may not be reused, redistributed, or repurposed without
-permission — please replace them with your own if you fork this project.
-
-## Not covered by MIT (personal content — do not reuse)
-
-- **Name & likeness** — "Sen" / "SEN" / "Sen Zheng 郑越升", the 3D character
-  model depicting the author `web/public/models/me.glb`, and its Blender source
-  `blender/sen.blend`.
-- **Résumé data** — education, employers, clients, roles, and follower counts in
-  `web/src/ui/Resume.tsx`.
-- **Work content** — titles, descriptions, and write-ups in
-  `web/src/data/works.ts`, `web/src/data/workDocs.ts`, and `web/src/content/works/*.md`.
-- **Brand logos & images** — `web/public/images/*` (Bad Printer Studio, HOTSAR,
-  「小郑还挺忙」), and the ZOOOP wordmark in `web/src/ui/ZooopLogo.tsx`. These belong
-  to their respective owners.
-- **Social profile links** in `web/src/ui/Resume.tsx`.
-
-## Third-party assets — verify their own licenses before reuse
-
-These are not the author's to sublicense; confirm each source's terms before
-redistributing:
-
-- **Fonts** — `web/public/fonts/` Cormorant Upright and Mansalva (Google Fonts,
-  SIL Open Font License). Bundled per the OFL; keep their licenses if you ship them.
-- **`web/public/textures/env.hdr`** — HDR environment map. Confirm the source's
-  license before reuse.
+本仓库是「上游开源模板 + 本人二次开发」的组合，所以授权分三层：**代码**（MIT）、
+**本人个人内容**（保留所有权利）、**尚未替换的上游素材**（属原作者，仅作占位）。
 
 ---
 
-## 简要说明（中文）
+## 1. 代码 —— MIT
 
-本仓库开源的是**构建场景的代码**（MIT，见 `LICENSE`），欢迎学习与复用。
+| 部分 | 许可 |
+| --- | --- |
+| 上游模板代码（3D 场景搭建、glb 相机动画管线、整体视觉） | MIT，© 2026 **Sen Zheng (SEN)**，见 [`LICENSE`](LICENSE) |
+| 本项目新增代码（交互层、模块面板、热点层、相机过渡、诊断脚本） | MIT，© 2026 **吕国庆 (Lv Guoqing)** |
 
-但仓库同时是作者本人的作品集，以下**个人内容与素材**版权归 Sen Zheng（SEN）所有，
-**不在 MIT 授权范围内**，请勿直接复用——fork 后请替换为你自己的内容：
+上游项目：[`dayinji/sen-3d-resume`](https://github.com/dayinji/sen-3d-resume)。
 
-- 姓名与肖像：「SEN / Sen Zheng 郑越升」、人物模型 `web/public/models/me.glb` 及其 Blender 源 `blender/sen.blend`
-- 简历数据（`web/src/ui/Resume.tsx`）、作品文案（`web/src/data/works.ts`、`web/src/content/works/*.md`）
-- 品牌 logo 与图片（`web/public/images/*`、ZOOOP 字标），及社交主页链接
+## 2. 本人的个人内容 —— 不在 MIT 范围内，保留所有权利
 
-字体、HDR 等第三方素材请各自核对其原始许可后再分发。
+© 2026 吕国庆 (Lv Guoqing)。**请勿直接复用**，fork 后请替换成你自己的：
+
+- 简历数据：`web/src/data/resume.ts`（教育 / 实习 / 项目 / 技能）
+- 兴趣与旅行：`web/src/data/life.ts`
+- 项目与技能列表：`web/src/data/works.ts`
+- 联系方式与二维码：`web/src/panels/ContactPanel.tsx`、`web/public/images/qr.png`
+
+## 3. ⚠️ 仍是上游作者的素材、尚未替换 —— 仅作占位
+
+以下素材版权归 **Sen Zheng (SEN)** 所有，**不在 MIT 范围内**，本项目只是拿它当占位：
+
+- **人物模型**：`web/public/models/me.glb` 及其 Blender 源 `blender/sen.blend`
+  —— **模型形象属于原作者**。对外发布前请务必换成你自己的模型。
+- **作品封面**：`web/public/works/covers/*.jpg`（上游板块的封面图，当前未被代码引用）
+
+## 4. 第三方素材 —— 各自许可，复用前请自行核对
+
+- **字体**：`web/public/fonts/` —— Cormorant Upright、Mansalva（Google Fonts，
+  SIL Open Font License）。随包分发时请保留其许可。
+- **`web/public/textures/env.hdr`** —— HDR 环境贴图，请核对来源许可。
+
+---
+
+## English summary
+
+- **Code** — the upstream template is MIT, © 2026 Sen Zheng (SEN), see [`LICENSE`](LICENSE).
+  Code added in this repository (interaction layer, module panels, hotspot layer, camera
+  transition, diagnostic scripts) is also MIT, © 2026 Lv Guoqing.
+- **Personal content** — the résumé, life, works and contact data in this repository is
+  © 2026 Lv Guoqing and is **not** covered by MIT.
+- **Not yet replaced from upstream** — `web/public/models/me.glb`, `blender/sen.blend` and
+  `web/public/works/covers/*.jpg` remain the original author's assets (© Sen Zheng (SEN),
+  not MIT) and are used as placeholders only. Replace them before publishing.
+- **Third-party assets** — fonts and `web/public/env.hdr` keep their own licenses; verify
+  each source before redistributing.
