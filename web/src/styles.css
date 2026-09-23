@@ -1423,14 +1423,19 @@ canvas {
   gap: 0.6em;
 }
 
-/* ---------- 加载遮罩：干净的深色底 + 一条细进度线 ----------
-   只做「淡出」一件事。真正的「进入感」由 Scene.tsx 的入场推近承担：
-   遮罩淡出的同时，相机从 1.4 倍距离沿 easeShot 滑进总览位（INTRO_PULL_MS = 1150）。
-   两个动作同时开始、方向一致，读起来是一次「从暗处飞进场景」。
+/* ---------- 加载遮罩：深色底 + 一个字标 + 它下面的进度线 ----------
+   字标与进度线是**一个整体**（.ls-lockup），一起推近、一起消失 ——
+   不拆成两条独立时间轴，这是「别堆叠」的底线。
 
-   2026-09-22 之前这版遮罩里堆了取景框、扫描线、线稿人形、四个热点、状态行，
-   被否掉：「只不过是把所有的堆叠到一起了」—— 每多一个独立元素，「进入」就弱一分。
-   App.tsx 的 .hero-chrome 本来就有取景框和四角标，遮罩里再画一套纯属重复劳动。
+   为什么必须有这个字标（2026-09-23 补）：
+   加载期（场景还没渲染出来那 1.0~1.5 秒：glb 加载 + 251 帧机位预烘 + 着色器编译）
+   屏幕上能动的只有这块幕布和进度线，而**幕布是纯色，放大等于没动**。
+   所以「视觉重心」只能由字标承担 —— 之前只有一条 2px 的进度线，
+   被老大一眼看成「开场动画没了，只剩一个进度条」。
+   真正的「进入感」仍然由 Scene.tsx 的相机推镜承担（从 1.4 倍距离滑进总览位）。
+
+   2026-09-22 那版遮罩里堆了取景框、扫描线、线稿人形、四个热点、状态行，
+   被否掉：「只不过是把所有的堆叠到一起了」。⚠️ 别再加第二个独立元素。
 
    ⚠️ 0.36s 必须与 LoadingScreen.tsx 的 FADE_MS 一致，且不能再放长：
    easeShot 是前倾曲线，淡出 0.6s 时推镜已被挡掉 70% 的行程（2026-09-23 实测读成「淡入」）。
@@ -1441,6 +1446,8 @@ canvas {
   position: fixed;
   inset: 0;
   z-index: 9999;
+  display: grid;
+  place-items: center;
   background: #0a0e16;
   opacity: 1;
   transition: opacity 0.36s ease;
@@ -1451,15 +1458,92 @@ canvas {
   pointer-events: none;
 }
 
-/* 进度线压在画面底部正中：细、短、不抢戏，把中心整个留给即将出现的形象。
-   用真实加载进度驱动（下面的 transition 抹平分批加载的跳变），不做假进度。 */
+/* 字标 + 进度线：整体推近放大 + 淡出，方向与相机推镜一致，
+   读起来是「字标冲过眼前消失，场景随之显形、镜头继续推进」的一次连续前进。 */
+.ls-lockup {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 26px;
+  animation: ls-lockup-in 420ms ease both;
+}
+
+.loading-screen.is-hidden .ls-lockup {
+  animation: ls-lockup-out 300ms cubic-bezier(0.4, 0, 0.7, 1) forwards;
+}
+
+/* 进场：轻微放大 + 淡入，避免字标在深色底上硬弹出来 */
+@keyframes ls-lockup-in {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* 交棒：opacity 在 28% 处（≈84ms）归零 —— 这个位置是按**遮罩当时还剩多少**反推的，
+   不是拍脑袋定的。
+
+   ⚠️ 别再往后挪。实测（handoff-trace 读 getComputedStyle）：
+     sinceHide= 84ms → 遮罩 0.61、字标 0.00  ← 场景名字块只露出 39% 且被压暗，读不出第二个名字
+     sinceHide=111ms → 遮罩 0.45、字标 0.00
+     sinceHide=187ms → 遮罩 0.23、字标 0.03  ← 场景名字块已 77% 亮度，与字标残余并存 → 两个「Lv Guoqing」
+   最初取 55%（187ms）正是踩在第三个状态上；改成 37% 后桌面端干净了，但移动端
+   连拍仍在 +76ms 那帧读到两个字标（scale 已 1.12、遮罩 0.65），所以再收到 28%。
+
+   代价是 84ms 之后字标不可见，放大动作只走完一小段 —— 所以终点定在 1.35 而不是 1.6：
+   可见期内从 1 到 1.2，推近的动势已经完整读出来，剩下的行程是给掉帧留的余量。
+   遮罩还要 276ms 才透明，这段「空窗」里屏幕上是正在变透明的幕布 + 隐约浮现的场景，
+   视觉重心已交给场景，不需要字标继续陪着。 */
+@keyframes ls-lockup-out {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  28% {
+    opacity: 0;
+    transform: scale(1.2);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.35);
+  }
+}
+
+/* 字号 / 字距刻意与 .overview-name / .overview-role 对齐：
+   交棒时字标淡出、场景里的同名块淡入，两处看起来是同一套排版。 */
+.ls-mark {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  text-align: center;
+}
+
+.ls-mark-name {
+  font-size: clamp(24px, 3.9vw, 46px);
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  /* letter-spacing 会在末字符右侧留一份字距，整行看起来偏左；补等量左内边距拉回居中。 */
+  padding-left: 0.1em;
+  color: #f4f1ea;
+}
+
+.ls-mark-role {
+  font-size: clamp(10px, 1.05vw, 13px);
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgba(244, 241, 234, 0.72);
+}
+
+/* 进度线：细、短，压在字标下方。用真实加载进度驱动
+   （下面的 transition 抹平分批加载的跳变），不做假进度。 */
 .ls-bar {
-  position: absolute;
-  left: 50%;
-  bottom: 44px;
-  width: min(240px, 40vw);
+  width: min(200px, 34vw);
   height: 2px;
-  transform: translateX(-50%);
   background: rgba(244, 241, 234, 0.12);
 }
 
@@ -1475,6 +1559,17 @@ canvas {
 @media (prefers-reduced-motion: reduce) {
   .loading-screen {
     transition: opacity 0.15s ease;
+  }
+
+  /* 减少动效时不推近，只淡出 —— 但 transition 必须写在基础态才生效 */
+  .ls-lockup {
+    animation: none;
+    transition: opacity 0.15s ease;
+  }
+
+  .loading-screen.is-hidden .ls-lockup {
+    animation: none;
+    opacity: 0;
   }
 
   .ls-bar i {
