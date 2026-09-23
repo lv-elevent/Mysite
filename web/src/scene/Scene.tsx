@@ -680,6 +680,11 @@ function Man2({
         dbg.pos = camera.position.toArray()
         dbg.quat = camera.quaternion.toArray()
         dbg.focus = focusRef.current.toArray()
+        // 距焦点的世界距离 + 垂直 fov：这两个数决定「总览态能看见多大范围」，
+        // 往背景加东西时要按它们算。之前是手估的，估错过一次（见 MEMORY.md 硬约束 5），
+        // 直接挂出来省得再猜。
+        dbg.dist = camera.position.distanceTo(focusRef.current)
+        dbg.fov = camera.fov
       }
     }
 
