@@ -106,12 +106,24 @@ async function main() {
     await new Promise((r) => setTimeout(r, 600))
     const trace = JSON.parse(await evaluate(cdp, `JSON.stringify(window.__trace || [])`))
 
-    writeFileSync(join(OUT, 'frames.json'), JSON.stringify({ frames: meta }, null, 2))
+    // ⚠️ 两个坐标系，别混（2026-09-23 踩过）：
+    //   meta[].ms / trace[].t  = performance.now() 绝对值，从**导航开始**计时
+    //   下面控制台打印的一切 ms = 减去 t0，而 t0 是**场景首帧**（window.__scene 首次可读）
+    //   —— 加载期（glb + 预烘 + 着色器编译）实测约 2s，两个基准能差出 2000ms，
+    //   把「推镜窗口 158→1297ms」当成绝对时间就会误判成「推镜全程被遮罩挡着」。
+    //   所以 frames.json 里同时存 rel，strip.py 用它标注故事板，两边就对齐了。
+    const t0 = trace.length ? trace[0].t : meta.length ? meta[0].ms : 0
+
+    writeFileSync(
+      join(OUT, 'frames.json'),
+      JSON.stringify({ t0: Math.round(t0), frames: meta.map((m) => ({ ...m, rel: Math.round(m.ms - t0) })) }, null, 2)
+    )
     writeFileSync(join(OUT, 'trace.json'), JSON.stringify(trace, null, 2))
 
-    // 截图时刻对齐到 trace 的起点，这样故事板上的 ms 与下面的数据是同一个坐标系
-    const t0 = trace.length ? trace[0].t : meta.length ? meta[0].ms : 0
-    console.log(`截图 ${meta.length} 帧：` + meta.map((m) => `${Math.round(m.ms - t0)}ms`).join(' '))
+    console.log(
+      `截图 ${meta.length} 帧（t0 = 场景首帧 = ${Math.round(t0)}ms，以下 ms 均相对 t0）：` +
+        meta.map((m) => `${Math.round(m.ms - t0)}ms`).join(' ')
+    )
 
     if (trace.length === 0) {
       console.log('⚠️ 没采到 window.__scene（生产环境会摇掉这段调试代码）')
@@ -156,7 +168,9 @@ async function main() {
         const med = sorted[Math.floor(sorted.length / 2)]
         const peak = sorted[sorted.length - 1]
         const peakAt = win.find((x) => x.rel === peak)
-        console.log(`\n推镜窗口：${win.length} 帧 / ${Math.round(win[win.length - 1].at)}ms`)
+        console.log(
+          `\n推镜窗口（相对场景首帧）：${Math.round(win[0].at)}ms → ${Math.round(win[win.length - 1].at)}ms，${win.length} 帧`
+        )
         console.log(
           `相机距焦点：${(win[0].dist + win[0].d).toFixed(3)} → ${win[win.length - 1].dist.toFixed(3)} 世界单位`
         )

@@ -26,7 +26,9 @@ ims = []
 for f in frames:
     im = Image.open(os.path.join(DIR, f['name'])).convert('RGB')
     h = round(im.height * CELL_W / im.width)
-    ims.append((f['ms'], im.resize((CELL_W, h), Image.LANCZOS)))
+    # 优先用 rel（相对「场景首帧」，与 cdp-intro 打印的推镜窗口同一坐标系）；
+    # cdp-transition.mjs 写的 frames.json 没有 rel，退回绝对 ms。
+    ims.append((f.get('rel', f['ms']), im.resize((CELL_W, h), Image.LANCZOS)))
 
 cell_h = max(im.height for _, im in ims)
 rows = (len(ims) + COLS - 1) // COLS
@@ -39,7 +41,8 @@ for i, (ms, im) in enumerate(ims):
     r, c = divmod(i, COLS)
     x = GAP + c * (CELL_W + GAP)
     y = GAP + r * (cell_h + LABEL_H + GAP)
-    draw.text((x + 6, y + 7), f'#{i}   {ms} ms', fill=(235, 235, 235))
+    # 带符号：t0（场景首帧）之前的帧是负数，那些帧遮罩还在，一眼能看出来
+    draw.text((x + 6, y + 7), f'#{i}   {ms:+d} ms', fill=(235, 235, 235))
     canvas.paste(im, (x, y + LABEL_H))
 
 canvas.save(OUT)
