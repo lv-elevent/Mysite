@@ -31,6 +31,29 @@ const easeShot = (x: number) => {
   return u * u * u * (u * (u * 6 - 15) + 10)
 }
 
+// 入场推近：交棒（store.entered）时相机额外拉远 INTRO_PULL 倍，沿上面同一条
+// easeShot 曲线滑回 1。
+//
+// 为什么用真实相机而不是给 canvas 加 CSS scale：
+//   1. 透视会跟着变（近大远小是真的），缩放只是把一张图放大，一眼假；
+//   2. 鼠标视差、景深、背景渐变球都是按相机算的，动相机它们自动跟着对；
+//   3. 走的是 pullCur 那条现成的倍率链（见下面 multiplyScalar），
+//      不新增一套相机状态，也就不碰机位过渡那套敏感逻辑。
+//
+// 终点严格等于总览位（倍率回到 1），所以 data/modules.ts 的热点坐标不需要重新校准。
+//
+// ⚠️ 2026-09-23 从 1.16 提到 1.4。原来那个「克制值」是被一条不成立的约束逼出来的：
+//    当时的顾虑是「热点层是静态视口百分比，镜头拉远会脱开」—— 但热点在入场期间
+//    是 opacity:0（.hotspots:not(.is-entered)），根本看不见；等它亮起来（1.0s）时
+//    推镜已走完 97%，偏移不足 1px。所以这个约束是假的，1.16 白白牺牲了纵深。
+//    实测 1.16 在 900ms 里只换来 16% 的尺寸变化，而且前 70% 还被没淡完的遮罩挡着，
+//    用户实际只看到约 5% —— 读起来是「淡入」不是「飞入」。
+//
+// 1.4 = 起始距离是终点位的 1.4 倍（人物起始只有最终尺寸的 71%），配合 FADE_MS
+// 缩到 360ms，可见行程从 30% 提到 61%，观感是明确的推镜。
+const INTRO_PULL = 1.4
+const INTRO_PULL_MS = 1150
+
 /**
  * 一台机位：相机停在某个整数帧时的姿态（世界坐标）。
  * body 是同一帧上人物自身的朝向（glb 的 `man` 节点）。
@@ -413,6 +436,13 @@ function Man2({
   const paraEuler = useRef(new THREE.Euler(0, 0, 0, 'YXZ'))
   const paraQuat = useRef(new THREE.Quaternion())
 
+  // 入场推近进度：0 = 相机在 INTRO_PULL 倍距离上（此时被加载遮罩挡着），1 = 已到总览位。
+  // 用 ref 不用 state：每帧都要读，进 state 会把整棵树重渲染 60 次/秒。
+  // 只存进度 k，不存起始时刻 —— 进度按累积 dt 推进，见下面 useFrame 里的说明。
+  const intro = useRef({ k: 0 })
+  // 是否已经报告过「场景渲染出第一帧」
+  const sceneReadyRef = useRef(false)
+
   // 过渡时长按「行程」定：位置距离（世界单位）+ 角度（度）× 0.06 折算。
   // 定长会让相邻机位之间慢吞吞、跨越全场的又太急；按行程给时长，观感速度才一致。
   const shotDuration = () => {
@@ -429,6 +459,33 @@ function Man2({
     const activeId = useStore.getState().active
     const sTarget = activeId ? MODULE_INDEX[activeId] : OVERVIEW_INDEX
     const frameTarget = THREE.MathUtils.clamp((sTarget + 1) * FRAMES_PER_NODE, 0, RESUME_FRAMES)
+
+    // 1b) 入场推近：交棒后从 INTRO_PULL 倍距离滑回 1，与加载遮罩的淡出同时开始。
+    //     进度用「累积 dt」而不是墙钟（now - start）：
+    //     scene.clone() + 251 帧机位预烘 + 着色器编译会在首帧前后造成约 50~60ms 的同步阻塞，
+    //     墙钟算法会在恢复的那一帧把整段停顿一次性补上 —— 实测单帧位移 0.0997，是邻帧的 10 倍，
+    //     看上去就是镜头「弹」了一下。累积 dt 配合下面的单帧封顶，卡顿只会让入场稍慢，不会跳。
+    //     四种情形分开处理，缺一不可：
+    //       开了模块（含 ?module= 深链）→ 快速收敛到 1。模块机位是 glb 烘焙死的，
+    //         带着入场偏移进去会让构图整体偏远十几趴。用 0.25s 收敛而不是直接置 1，
+    //         是因为遮罩淡出后仍可点热点，硬切会看到一次跳。
+    //       还没交棒 → 钉在 0，相机待在远处（反正被遮罩挡着）。
+    //       已交棒且要推近 → 从本组件第一帧起按时间推进。
+    //       已交棒但不推近（减少动效 / ?intro=0）→ 直接 1。
+    const { entered, introWanted } = useStore.getState()
+    if (activeId !== null) {
+      intro.current.k = Math.min(1, intro.current.k + dt / 0.25)
+    } else if (!entered) {
+      intro.current.k = 0
+    } else if (introWanted) {
+      // 单帧步长封顶 33ms（≈30fps）。与机位过渡同一套保护，但取值更紧：
+      // 入场的速度峰值落在开头（easeShot 前倾），而开头恰恰是着色器编译最容易卡的窗口。
+      // 取 50ms 时实测仍有一帧推进 4.5×中位位移；33ms 把它压到约 2.9×，肉眼已不可辨。
+      intro.current.k = Math.min(1, intro.current.k + Math.min(dt, 0.033) / (INTRO_PULL_MS / 1000))
+    } else {
+      intro.current.k = 1
+    }
+    const introFactor = 1 + (INTRO_PULL - 1) * (1 - easeShot(intro.current.k))
 
     // 2) 机位过渡：在「出发机位」和「目标机位」之间插值（位置 lerp + 朝向 slerp）。
     //    不再让相机沿帧轴滑过中间所有机位 —— 那段是「绕脸巡游」，滑过去就是硬切。
@@ -570,7 +627,9 @@ function Man2({
         .applyQuaternion(paraQuat.current)
       // 移动端沿「焦点→相机」方向整体拉远：焦点屏幕位置不变，主体更小、留白更多。
       // 总览态同样拉远（overviewPullback，已按过渡进度插值），两者相乘 —— 手机上首屏离得更远。
+      // 入场推近再乘一层（introFactor，1.16 → 1），同样沿这条方向，焦点位置不动。
       tmpVec.current.multiplyScalar(st.pullCur)
+      tmpVec.current.multiplyScalar(introFactor)
       if (isMobile.current) tmpVec.current.multiplyScalar(cam.mobilePullback)
       tmpVec.current.add(focusRef.current)
       camera.position.copy(tmpVec.current)
@@ -598,6 +657,14 @@ function Man2({
       parallax.x = ((smouse.current.x * ax) / (fovRad * aspect)) * 100
       parallax.y = ((-smouse.current.y * ax) / fovRad) * 100
 
+      // 报告「场景渲染出第一帧」。放在相机就位之后而不是 useFrame 开头：
+      // 第一帧之前的帧相机还没定位，报出去遮罩会提前让开。
+      // LoadingScreen 等这个信号才交棒（useProgress 到 100 时场景其实还是空的）。
+      if (!sceneReadyRef.current) {
+        sceneReadyRef.current = true
+        useStore.getState().markSceneReady()
+      }
+
       // 开发期把相机状态挂到 window.__scene，供 scripts/cdp-camera-trace.mjs 逐帧读。
       // 为什么要开这个口子：R3F 没把 store 挂到 canvas 上（只有 __reactFiber），
       // 运行时拿不到相机对象，「镜头过渡连不连贯」这类问题就只能靠猜。
@@ -608,6 +675,7 @@ function Man2({
         dbg.frame = frame
         dbg.k = st.k
         dbg.pull = st.pullCur
+        dbg.intro = introFactor
         dbg.dt = dt
         dbg.pos = camera.position.toArray()
         dbg.quat = camera.quaternion.toArray()

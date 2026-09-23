@@ -160,11 +160,19 @@ export async function evaluate(cdp, expression) {
   return result.value !== undefined ? result.value : result.description
 }
 
-/** 截一帧，返回 PNG Buffer */
-export async function shot(cdp) {
-  const { data } = await cdp.send('Page.captureScreenshot', {
-    format: 'png',
-    captureBeyondViewport: false,
-  })
+/**
+ * 截一帧。
+ * @param opts.format 'png'（默认，无损）| 'jpeg'
+ * @param opts.quality jpeg 质量（1~100），仅 format='jpeg' 时有效
+ *
+ * 为什么要 JPEG：Page.captureScreenshot 的耗时几乎全在编码上。1440×900 的 PNG 约 800KB、
+ * 单张 200ms；JPEG q=70 约 80KB、单张 60ms。对「入场推镜只有 1 秒」这类短窗口，
+ * 200ms 一张等于只有 5 帧，故事板看不出运动；换 JPEG 能拿到 3 倍密度。
+ * 只影响诊断脚本，不参与构建产物。
+ */
+export async function shot(cdp, { format = 'png', quality } = {}) {
+  const params = { format, captureBeyondViewport: false }
+  if (format === 'jpeg' && quality) params.quality = quality
+  const { data } = await cdp.send('Page.captureScreenshot', params)
   return Buffer.from(data, 'base64')
 }

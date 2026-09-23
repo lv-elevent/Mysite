@@ -45,6 +45,11 @@ export default function Hotspots({
   const active = useStore((s) => s.active)
   const hovered = useStore((s) => s.hovered)
   const setHovered = useStore((s) => s.setHovered)
+  // 是否已交棒（加载遮罩开始淡出）。热点要等它置位后才开始入场：
+  // 这里的位置是按「总览位」算的静态视口百分比（见下方 style 的 left/top），
+  // 而交棒那一刻 Scene.tsx 的入场推近才刚开始把镜头从 1.4 倍距离拉回来 ——
+  // 提前出现就会明显脱离形象。CSS 里的延迟（1.0s 起）就是按推镜时长配的。
+  const entered = useStore((s) => s.entered)
   const narrow = useIsNarrow()
   const overview = active === null
 
@@ -53,7 +58,12 @@ export default function Hotspots({
 
   return (
     <div
-      className={'hotspots' + (overview ? '' : ' is-hidden') + (flat ? ' is-flat' : '')}
+      className={
+        'hotspots' +
+        (overview ? '' : ' is-hidden') +
+        (entered ? ' is-entered' : '') +
+        (flat ? ' is-flat' : '')
+      }
       ref={layerRef}
       aria-hidden={!overview}
     >

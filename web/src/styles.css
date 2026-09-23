@@ -1423,22 +1423,27 @@ canvas {
   gap: 0.6em;
 }
 
-/* ---------- 加载遮罩：开场动画（取景器校准 → 线稿成形 → 热点点亮）----------
-   时序与 LoadingScreen.tsx 的 INTRO_MS 强耦合，改一边必须同步另一边：
-     四角标 0/80/160/240ms → 扫描线 100–720ms → 线稿 300–1150ms
-     → 四个热点 1150/1300/1450/1600ms → 状态行 1650ms
+/* ---------- 加载遮罩：干净的深色底 + 一条细进度线 ----------
+   只做「淡出」一件事。真正的「进入感」由 Scene.tsx 的入场推近承担：
+   遮罩淡出的同时，相机从 1.4 倍距离沿 easeShot 滑进总览位（INTRO_PULL_MS = 1150）。
+   两个动作同时开始、方向一致，读起来是一次「从暗处飞进场景」。
 
-   设计要点：发丝内框与四角标跟首屏的 .hero-frame / .hero-mark 用同一个 --m
-   和同一套定位，所以淡出时「取景器」是留在原地交棒，而不是整块消失再重画一遍。
-   底色取 body 的 #0a0e16 而不是纯黑，淡出到 3D 背景时不出现一次色阶跳变。 */
+   2026-09-22 之前这版遮罩里堆了取景框、扫描线、线稿人形、四个热点、状态行，
+   被否掉：「只不过是把所有的堆叠到一起了」—— 每多一个独立元素，「进入」就弱一分。
+   App.tsx 的 .hero-chrome 本来就有取景框和四角标，遮罩里再画一套纯属重复劳动。
+
+   ⚠️ 0.36s 必须与 LoadingScreen.tsx 的 FADE_MS 一致，且不能再放长：
+   easeShot 是前倾曲线，淡出 0.6s 时推镜已被挡掉 70% 的行程（2026-09-23 实测读成「淡入」）。
+
+   底色取 body / Canvas 的 #0a0e16 而不是纯黑：遮罩出现前是 body 在撑，
+   色值不同会在第一帧闪一下。 */
 .loading-screen {
-  --m: clamp(16px, 2.4vh, 30px);
   position: fixed;
   inset: 0;
   z-index: 9999;
   background: #0a0e16;
   opacity: 1;
-  transition: opacity 0.55s ease;
+  transition: opacity 0.36s ease;
 }
 
 .loading-screen.is-hidden {
@@ -1446,166 +1451,16 @@ canvas {
   pointer-events: none;
 }
 
-/* 发丝内框 —— 与 .hero-frame 同尺寸、同位置 */
-.ls-frame {
-  position: absolute;
-  inset: var(--m);
-  border: 1px solid rgba(244, 241, 234, 0.1);
-}
-
-/* 四角定位标 —— 与 .hero-mark 同位。
-   十字用伪元素画（1px 实心，比字形锐利），定位用 top/left 负半宽而不是
-   transform: translate(-50%,-50%)，把 transform 留给入场缩放。 */
-.ls-mark {
-  position: absolute;
-  width: 14px;
-  height: 14px;
-  animation: ls-mark-in 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-
-.ls-mark::before,
-.ls-mark::after {
-  content: '';
-  position: absolute;
-  background: rgba(244, 241, 234, 0.52);
-}
-
-.ls-mark::before {
-  left: 50%;
-  top: 0;
-  width: 1px;
-  height: 100%;
-  margin-left: -0.5px;
-}
-
-.ls-mark::after {
-  top: 50%;
-  left: 0;
-  height: 1px;
-  width: 100%;
-  margin-top: -0.5px;
-}
-
-.ls-mark.tl {
-  top: calc(var(--m) - 7px);
-  left: calc(var(--m) - 7px);
-}
-
-.ls-mark.tr {
-  top: calc(var(--m) - 7px);
-  right: calc(var(--m) - 7px);
-  animation-delay: 0.08s;
-}
-
-.ls-mark.bl {
-  bottom: calc(var(--m) - 7px);
-  left: calc(var(--m) - 7px);
-  animation-delay: 0.16s;
-}
-
-.ls-mark.br {
-  bottom: calc(var(--m) - 7px);
-  right: calc(var(--m) - 7px);
-  animation-delay: 0.24s;
-}
-
-/* 扫描线：自上而下扫一遍，像取景器在扫过被摄体 */
-.ls-scan {
-  position: absolute;
-  left: var(--m);
-  right: var(--m);
-  top: var(--m);
-  height: 1px;
-  background: linear-gradient(
-    90deg,
-    rgba(111, 144, 111, 0) 0%,
-    rgba(111, 144, 111, 0.85) 50%,
-    rgba(111, 144, 111, 0) 100%
-  );
-  animation: ls-scan 0.62s cubic-bezier(0.4, 0, 0.2, 1) 0.1s both;
-}
-
-/* 人物线稿 + 热点
-   尺寸对齐总览里的角色：真实角色头部宽约 227px、肩宽约 270px（1440×900）。
-   线稿头部 116 用户单位、肩 148 用户单位，元素高 58vh（约 522px）时
-   头部约 204px、肩约 261px —— 略小于角色，淡出时读起来是「线稿落定成真人」。
-   top 取 47% 而非 50%：总览里角色的视觉重心略高于视口中心。 */
-.ls-figure {
-  position: absolute;
-  left: 50%;
-  top: 47%;
-  width: auto;
-  height: clamp(300px, 58vh, 540px);
-  transform: translate(-50%, -50%);
-  overflow: visible;
-}
-
-/* 描边成形：pathLength=100 把路径长度归一化，dasharray 与 offset 都用 100，
-   不必去猜真实长度，也就不存在「画不满 / 画过头」。
-   为什么关键帧里还要动 opacity：dashoffset=100 时虚线边界正好落在路径末端，
-   配合 stroke-linecap: round 会渲染出一个零长度的圆头 —— 一个游离的小灰点，
-   在描边开始前（延迟 0.3s 内）一直挂在线稿右下角，看着像脏点。
-   用 opacity 把延迟期间整条路径压掉，顺带得到「边画边显影」的手感。 */
-.ls-outline {
-  fill: none;
-  /* 描边色由 LoadingScreen.tsx 的 #ls-stroke 渐变给（躯干下缘淡出），
-     这里不再写死 rgba —— CSS 的优先级高于表现属性，写死会把渐变盖掉。 */
-  stroke: url(#ls-stroke);
-  stroke-width: 1.4;
-  stroke-linecap: round;
-  stroke-dasharray: 100;
-  stroke-dashoffset: 100;
-  animation: ls-draw 0.85s cubic-bezier(0.4, 0, 0.2, 1) 0.3s both;
-}
-
-.ls-spot {
-  transform-box: fill-box;
-  transform-origin: center;
-  animation: ls-spot-in 0.42s cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-
-.ls-spot-disc {
-  fill: #0a0e16;
-  stroke: #6f906f;
-  stroke-width: 1.4;
-}
-
-.ls-spot-dot {
-  fill: #6f906f;
-}
-
-/* 脉冲环：无限循环，资源还没就绪时它一直在跳，画面不会看着像卡死 */
-.ls-spot-ring {
-  fill: none;
-  stroke: #6f906f;
-  stroke-width: 1;
-  transform-box: fill-box;
-  transform-origin: center;
-  opacity: 0;
-  animation: ls-ring 1.8s ease-out infinite;
-}
-
-.ls-hint {
-  position: absolute;
-  left: 50%;
-  bottom: calc(var(--m) + 22px);
-  transform: translateX(-50%);
-  font-size: clamp(10px, 1vw, 12px);
-  letter-spacing: 0.3em;
-  text-indent: 0.3em; /* 补偿字距在末字后留下的空隙，否则看着偏左 */
-  white-space: nowrap;
-  color: rgba(244, 241, 234, 0.42);
-  animation: ls-fade-in 0.5s ease 1.65s both;
-}
-
-/* 进度条压在发丝内框的下边缘上：内框本身就是刻度尺，不再多画一条 */
+/* 进度线压在画面底部正中：细、短、不抢戏，把中心整个留给即将出现的形象。
+   用真实加载进度驱动（下面的 transition 抹平分批加载的跳变），不做假进度。 */
 .ls-bar {
   position: absolute;
-  left: var(--m);
-  right: var(--m);
-  bottom: var(--m);
-  height: 1px;
-  background: rgba(244, 241, 234, 0.1);
+  left: 50%;
+  bottom: 44px;
+  width: min(240px, 40vw);
+  height: 2px;
+  transform: translateX(-50%);
+  background: rgba(244, 241, 234, 0.12);
 }
 
 .ls-bar i {
@@ -1617,110 +1472,13 @@ canvas {
   transition: transform 0.35s ease;
 }
 
-@keyframes ls-mark-in {
-  from {
-    opacity: 0;
-    transform: scale(0.4);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-@keyframes ls-scan {
-  from {
-    opacity: 0;
-    transform: translateY(0);
-  }
-  15% {
-    opacity: 1;
-  }
-  to {
-    opacity: 0;
-    transform: translateY(calc(100vh - var(--m) * 2));
-  }
-}
-
-@keyframes ls-draw {
-  from {
-    opacity: 0;
-    stroke-dashoffset: 100;
-  }
-  10% {
-    opacity: 1;
-  }
-  to {
-    opacity: 1;
-    stroke-dashoffset: 0;
-  }
-}
-
-@keyframes ls-spot-in {
-  from {
-    opacity: 0;
-    transform: scale(0.4);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-@keyframes ls-ring {
-  from {
-    opacity: 0.85;
-    transform: scale(0.55);
-  }
-  to {
-    opacity: 0;
-    transform: scale(2.4);
-  }
-}
-
-@keyframes ls-fade-in {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-/* 跳过开场时（会话内二次进入 / 减少动效）：直接呈现终态，不播动画。
-   注意各元素的基态都不写 opacity: 0 —— 那是关键帧 from 的职责，
-   靠 animation-fill-mode: both 在延迟期间生效；一旦不播动画，基态就自动是正确的终态。 */
-.loading-screen.is-static .ls-mark,
-.loading-screen.is-static .ls-spot,
-.loading-screen.is-static .ls-hint,
-.loading-screen.is-static .ls-outline {
-  animation: none;
-}
-
-.loading-screen.is-static .ls-outline {
-  stroke-dashoffset: 0;
-}
-
-.loading-screen.is-static .ls-spot-ring {
-  display: none;
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .loading-screen .ls-mark,
-  .loading-screen .ls-spot,
-  .loading-screen .ls-hint,
-  .loading-screen .ls-outline,
-  .loading-screen .ls-scan {
-    animation: none;
+  .loading-screen {
+    transition: opacity 0.15s ease;
   }
 
-  .loading-screen .ls-outline {
-    stroke-dashoffset: 0;
-  }
-
-  .loading-screen .ls-spot-ring,
-  .loading-screen .ls-scan {
-    display: none;
+  .ls-bar i {
+    transition: none;
   }
 }
 
@@ -1960,27 +1718,40 @@ canvas {
   backdrop-filter: blur(6px);
   transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.3s ease,
     background 0.3s ease, border-color 0.3s ease;
-  /* 入场：四个热点依次亮起，把视线从人物引到可点元素上。
-     用 backwards 而不是 both —— both 会把最后一帧的 transform 锁死，
-     之后 hover 的 scale(1.16) 和 is-hidden 的缩回都会失效。
-     delay 从 1.2s 起：等 LoadingScreen（模型加载完才淡出）先让开。 */
+}
+
+/* 入场：四个热点依次亮起，把视线从人物引到可点元素上。
+   用 backwards 而不是 both —— both 会把最后一帧的 transform 锁死，
+   之后 hover 的 scale(1.16) 和 is-hidden 的缩回都会失效。
+
+   动画挂在 .is-entered 上而不是直接写在 .hotspot-node 里：基准时刻必须是
+   「交棒」（store.entered 置位 = 遮罩开始淡出），而不是页面加载 ——
+   遮罩停留多久取决于模型加载速度，绝对延迟对不上。
+   延迟从 1.0s 起：等 Scene.tsx 的入场推近（INTRO_PULL_MS = 1150）先落位。
+   热点是静态视口百分比坐标，镜头没到位就出现会明显脱离形象 ——
+   按 easeShot 算，1.0s 时推镜已走完 99.5%，偏移不足 1px，可以放心亮。 */
+.hotspots:not(.is-entered) .hotspot-node {
+  opacity: 0;
+}
+
+.hotspots.is-entered .hotspot-node {
   animation: hotspot-in 0.6s cubic-bezier(0.22, 1, 0.36, 1) backwards;
 }
 
 .hotspot:nth-child(1) .hotspot-node {
-  animation-delay: 1.2s;
+  animation-delay: 1s;
 }
 
 .hotspot:nth-child(2) .hotspot-node {
-  animation-delay: 1.36s;
+  animation-delay: 1.1s;
 }
 
 .hotspot:nth-child(3) .hotspot-node {
-  animation-delay: 1.52s;
+  animation-delay: 1.2s;
 }
 
 .hotspot:nth-child(4) .hotspot-node {
-  animation-delay: 1.68s;
+  animation-delay: 1.3s;
 }
 
 @keyframes hotspot-in {
@@ -2001,7 +1772,9 @@ canvas {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .hotspot-node {
+  /* 选择器必须与上面 .hotspots.is-entered .hotspot-node 同级，
+     否则被它压过、动画照跑。关掉后热点在交棒那一刻直接出现（无推镜、无错位）。 */
+  .hotspots.is-entered .hotspot-node {
     animation: none;
   }
   .hotspots.is-hidden .hotspot-node {
